@@ -2,7 +2,7 @@
 #include "Arduino.h"
 #include "DFRobotDFPlayerMini.h"
 //For score display: 
-  // Also for text display
+// Also for text display
 #include <M5UNIT_DIGI_CLOCK.h>
 //For text display:
 #include <Wire.h>
@@ -31,6 +31,7 @@ All remaining pin assignments (LEDs, PTT button, rotary encoder, TM1637 CLK/DIO)
 int blow_threshold_detect = 1000;
 
 //PTT Button: 
+//#define PTT_PIN PIN_PD4
 #define PTT_PIN PIN_PD4
 
 
@@ -69,7 +70,7 @@ void setup() {
   pinMode(RESTART_PIN, INPUT_PULLUP);
 
   //Round Randomize 
-  randomSeed(analogRead(A1));
+  randomSeed(analogRead(A0));   // microphone pin
 
   //For PTT Button:
   pinMode(PTT_PIN, INPUT_PULLUP);  // Enable internal pull-up
@@ -91,19 +92,28 @@ void setup() {
   //DF Player (Mic)
   Serial1.begin(9600);  //.begin() initializes serual communication between Board and other devices (and sets baud rate)
 
-  pinMode(PIN_BUSY, INPUT);
+  pinMode(PIN_BUSY, INPUT_PULLUP);
 
 
   delay(2000);
 
-  myDFPlayer.begin(Serial1);
+  if (!myDFPlayer.begin(Serial1)) 
+  {
+    txtDisplay.clearDisplay();
+    txtDisplay.setCursor(0,0);
+    txtDisplay.print("DFP FAIL");
+    txtDisplay.display();
+    delay(2000);
+  }
+
   myDFPlayer.volume(20);
   myDFPlayer.play(1);
 
 
   //Encoder (Dial)
-  pinMode(5, INPUT_PULLUP);  // PD5
-  pinMode(6, INPUT_PULLUP);  // PD6
+  pinMode(5, INPUT_PULLUP);
+  pinMode(6, INPUT_PULLUP);
+
 
   Serial.begin(9600);
 
@@ -111,7 +121,6 @@ void setup() {
 
 void loop() 
 {
-
   if (checkRestartButton()) 
   {
     restartGame();
@@ -128,9 +137,22 @@ void loop()
   {
     resetLEDs();  
     displayRoundNumber(round);
-    delay(3000);
-    //In cases or actual functions themselves, have a countdown that gives user enough time to complete task
-    //Give warning on time? or no? Maybe display how much time there is left
+    delay(1000);
+    
+    int roundTime;
+    if (round == 1)
+    {
+      roundTime = 5000;
+    }
+    else if (round == 2)
+    {
+      roundTime = 3000;
+    }
+    else
+    {
+      roundTime = 1000;
+    }
+
     int order[testChoice] = {1, 2, 3};
 
     //Shuffle the array
@@ -152,13 +174,15 @@ void loop()
           playAudio(3);
           LEDTwo();
           displayRadioRound();
-          delay(5000);
-          //Cool idea if we have time.. have radio freq noise in background while this 
+          playAudio(7);
+          delay(roundTime);
           if(!radio())
           {
+            myDFPlayer.stop();
             fail = true;
             goto END_GAME;
           }
+          myDFPlayer.stop();
           playAudio(4);
           displayTestSuccess();
             score++;
@@ -170,7 +194,7 @@ void loop()
           playAudio(1);
           LEDThree();
           displayTempRound();
-          delay(5000);
+          delay(roundTime);
           if(!tempDetect())
           {
             fail = true;
@@ -188,16 +212,16 @@ void loop()
           LEDFour();
           displayTalkRound();
           //Delay; if time runs out, jump to else 
-          if(!button(3000))
+          if(!button(roundTime))
           {
               fail = true;
               goto END_GAME;
           }
           playAudio(4);
-              displayTestSuccess();
-              score++;
-              updateScoreDisplay(score);
-              delay(3000);
+          displayTestSuccess();
+          score++;
+          updateScoreDisplay(score);
+          delay(3000);
           break; 
       }
     }
@@ -240,7 +264,8 @@ A simple threshold on one ADC sample may not be enough, so it is recommended to 
 The exact ADC threshold value can remain adjustable until testing is done.
 Note: The microphone is used exclusively for blow detection. The PTT action requires only a button press and does not involve microphone input.
 */
-bool tempDetect() {
+bool tempDetect() 
+{
   const unsigned long sampleWindow = 200;
   unsigned long startTime = millis();
   int peak = 0; 
@@ -288,8 +313,9 @@ void LEDFour()
   delay(500);
 }
 
-void resetLEDs() {
-    PORTB &= ~((1 << PB2) | (1 << PB3) | (1 << PB4));
+void resetLEDs() 
+{
+  PORTB &= ~((1 << PB2) | (1 << PB3) | (1 << PB4));
 }
 
 
@@ -309,6 +335,7 @@ bool button(unsigned long timeoutMs)
       {
         if (millis() - holdStart >= 100) 
         {
+          delay(2000);
           return true;
         }
       }
@@ -319,29 +346,41 @@ bool button(unsigned long timeoutMs)
 }
 
 
+//Encoder-- Radio Freq dial check 
+bool radio() 
+{
+  bool pd5_low = !(PIND & (1 << PIND5));
+  bool pd6_low = !(PIND & (1 << PIND6));
+  if (pd5_low || pd6_low) 
+  {
+    PORTB |= (1 << PORTB2);
+    return true; 
+  } 
+  else 
+  {
+    PORTB &= ~(1 << PORTB2);
+    return false;
+  }
+}
 
 
 /*Text Display
 The OLED text display will be controlled by the MCU over I2C.
-Software will need to define display functions for all game states. The following states and display strings should be defined:
 */
-//Or put start and countdown in same function? 
-
 
 void displayStart()
 {
-  txtDisplay.setTextSize(2);
+  txtDisplay.setTextSize(1.5);
   txtDisplay.setTextColor(SH110X_WHITE);  //On monochrome OLEDs, SH110X_WHITE means turn pixels on 
   txtDisplay.setCursor(10, 10);
-  txtDisplay.println("HELLO");
+  txtDisplay.println("STARTING GAME");
   txtDisplay.display();
 }
-
 
 void displayTempRound() 
 {
   txtDisplay.clearDisplay();
-  txtDisplay.setTextSize(2);
+  txtDisplay.setTextSize(1.5);
   txtDisplay.setCursor(10, 10);
   txtDisplay.print("BLOW INTO SENSOR");
   txtDisplay.display();
@@ -350,16 +389,16 @@ void displayTempRound()
 void displayTalkRound() 
 {
   txtDisplay.clearDisplay();
-  txtDisplay.setTextSize(2);
+  txtDisplay.setTextSize(1.5);
   txtDisplay.setCursor(10, 10);
-  txtDisplay.print("PRESS BUTTON TO TALK");
+  txtDisplay.print("PUSH BUTTON TO TALK");
   txtDisplay.display();
 }
 
 void displayRadioRound() 
 {
   txtDisplay.clearDisplay();
-  txtDisplay.setTextSize(2);
+  txtDisplay.setTextSize(1.5);
   txtDisplay.setCursor(10, 10);
   txtDisplay.print("TURN RADIO DIAL");
   txtDisplay.display();
@@ -367,7 +406,7 @@ void displayRadioRound()
 
 void displayTestSuccess() {
   txtDisplay.clearDisplay();
-  txtDisplay.setTextSize(2);
+  txtDisplay.setTextSize(1.7);
   txtDisplay.setCursor(10, 10);
   txtDisplay.print("TEST COMPLETE");
   txtDisplay.display();
@@ -376,7 +415,7 @@ void displayTestSuccess() {
 void displayTestFail() 
 {
   txtDisplay.clearDisplay();
-  txtDisplay.setTextSize(1);
+  txtDisplay.setTextSize(2);
   txtDisplay.setCursor(10, 10);
   txtDisplay.print("FAILED TEST");
   txtDisplay.display();
@@ -398,17 +437,17 @@ void displayRoundNumber(int i)
   txtDisplay.setCursor(10, 20);
   if(i == 1)
   {
-    txtDisplay.print("Round 1");
+    txtDisplay.print("ROUND 1");
     txtDisplay.display();
   }
   else if(i == 2)
   {
-    txtDisplay.print("Round 2");
+    txtDisplay.print("ROUND 2");
     txtDisplay.display();
   }
   else if(i == 3)
   {
-    txtDisplay.print("Round 3");
+    txtDisplay.print("ROUND 3");
     txtDisplay.display();
   }
 }
@@ -430,9 +469,14 @@ The colon segment should remain off at all times to avoid visual confusion.
 */
 void updateScoreDisplay(int score)
 {
-  Digiclock.setString(score);
-}
+  char buffer[16]; // Temporary buffer for string conversion
 
+  // Convert int to string safely
+  snprintf(buffer, sizeof(buffer), "%d", score);
+
+  // Call setString with the converted string
+  Digiclock.setString(buffer);
+}
 
 
 //Sound effects
@@ -442,24 +486,6 @@ void playAudio(uint16_t fileNumber)
 }
 
 
-//Encoder-- Radio Freq dial check 
-bool radio() 
-{
-  playAudio(7);
-  bool pd5_low = !(PIND & (1 << PIND5));
-  bool pd6_low = !(PIND & (1 << PIND6));
-  if (pd5_low || pd6_low) 
-  {
-    PORTB |= (1 << PORTB2);
-    delay(100);
-    return true; 
-  } 
-  else 
-  {
-    PORTB &= ~(1 << PORTB2);
-    return false;
-  }
-}
 
 //Debounce for restart button
 bool checkRestartButton() 
@@ -493,7 +519,6 @@ bool checkRestartButton()
 void restartGame() 
 {
     // Reset game variables
-    //Add more possibly 
 
     updateScoreDisplay(0);
     txtDisplay.clearDisplay();
