@@ -2,16 +2,15 @@
 #include "Arduino.h"
 #include "DFRobotDFPlayerMini.h"
 //For score display: 
-// Also for text display
 #include <M5UNIT_DIGI_CLOCK.h>
 //For text display:
-#include <Wire.h>
+#include <Wire.h>    // Also for score display
 #include <Adafruit_GFX.h>
 #include <Adafruit_SH110X.h>
 
 
 /*
-However, the following pins are fixed by hardware peripheral constraints and must not be reassigned:
+The following pins are fixed by hardware peripheral constraints and must not be reassigned:
 Pin	Function	Reason
 PC0 (SCL)	OLED I2C clock	Hardware I2C fixed pin
 PC1 (SDA)	OLED I2C data	Hardware I2C fixed pin
@@ -22,6 +21,7 @@ PD3 (TXD1)	MCU TX → DFPlayer RX	Hardware UART1 fixed pin
 PA0 (ADC0)	Microphone analog input	ADC input pin
 All remaining pin assignments (LEDs, PTT button, rotary encoder, TM1637 CLK/DIO) are to be confirmed after hardware layout is finalized.
 */
+
 //Restart Pin
 #define RESTART_PIN 5   // PB5
 
@@ -60,7 +60,8 @@ DFRobotDFPlayerMini myDFPlayer;
 
 
 // the setup function runs once when you press reset or power the board
-void setup() {
+void setup() 
+{
   // initialize pins
   //For LEDs:
   DDRB |= (1 << PB2) | (1 << PB3) | (1 << PB4);
@@ -93,7 +94,6 @@ void setup() {
   Serial1.begin(9600);  //.begin() initializes serual communication between Board and other devices (and sets baud rate)
 
   pinMode(PIN_BUSY, INPUT_PULLUP);
-
 
   delay(2000);
 
@@ -404,7 +404,8 @@ void displayRadioRound()
   txtDisplay.display();
 }
 
-void displayTestSuccess() {
+void displayTestSuccess() 
+{
   txtDisplay.clearDisplay();
   txtDisplay.setTextSize(1.7);
   txtDisplay.setCursor(10, 10);
