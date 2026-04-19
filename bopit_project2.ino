@@ -425,9 +425,9 @@ void displayTestFail()
 void displayGameOver() 
 {
   txtDisplay.clearDisplay();
-  txtDisplay.setTextSize(2);
+  txtDisplay.setTextSize(1.5);
   txtDisplay.setCursor(10, 20);
-  txtDisplay.print("GAME OVER");
+  txtDisplay.print("GHOST NOT FOUND");
   txtDisplay.display();
 }
 
@@ -456,9 +456,9 @@ void displayRoundNumber(int i)
 void displayGameWon() 
 {
   txtDisplay.clearDisplay();
-  txtDisplay.setTextSize(2);
+  txtDisplay.setTextSize(1.5);
   txtDisplay.setCursor(10, 20);
-  txtDisplay.print("YOU WIN!");
+  txtDisplay.print("GHOST DETECTED!");
   txtDisplay.display();
 }
 
@@ -523,9 +523,6 @@ void restartGame()
 
     updateScoreDisplay(0);
     txtDisplay.clearDisplay();
-    txtDisplay.setCursor(10, 20);
-    txtDisplay.print("RESTARTING...");
-    txtDisplay.display();
 
     delay(1000);
 
